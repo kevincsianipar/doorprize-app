@@ -10,7 +10,12 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [tempMin, setTempMin] = useState(10000);
   const [tempMax, setTempMax] = useState(99999);
+  const [animatingDigits, setAnimatingDigits] = useState([false, false, false, false, false]);
   const animationRef = useRef(null);
+  const digitCounters = useRef([0, 0, 0, 0, 0]);
+  const finalNumberRef = useRef('00000');
+  const animatingDigitsRef = useRef([true, true, true, true, true]);
+  const isProcessingRef = useRef(false);
 
   const getAvailableNumbers = useCallback(() => {
     const available = [];
@@ -22,48 +27,100 @@ function App() {
     return available;
   }, [minNumber, maxNumber, winningNumbers]);
 
-  const handleButtonClick = useCallback(() => {
-    if (isAnimating) {
-      // Stop animation
-      setIsAnimating(false);
-      if (animationRef.current) {
-        clearInterval(animationRef.current);
-      }
+  // Animation loop - runs continuously when interval is active
+  useEffect(() => {
+    if (!isAnimating || !animationRef.current) return;
 
-      // Generate final number
+    const animate = () => {
+      const newDigits = [];
+      for (let i = 0; i < 5; i++) {
+        if (animatingDigitsRef.current[i]) {
+          // Show random number if still animating
+          newDigits.push(Math.floor(Math.random() * 10).toString());
+        } else {
+          // Show final digit if stopped
+          newDigits.push(finalNumberRef.current[i] || '0');
+        }
+      }
+      setCurrentNumber(newDigits.join(''));
+    };
+
+    const interval = setInterval(animate, 80);
+    return () => clearInterval(interval);
+  }, [isAnimating]);
+
+  const handleButtonClick = useCallback(() => {
+    // Prevent multiple rapid clicks/keypresses
+    if (isProcessingRef.current) {
+      return;
+    }
+
+    if (isAnimating) {
+      // STOP: Generate final number and stop digits one by one
+      isProcessingRef.current = true;
+
       const available = getAvailableNumbers();
       if (available.length === 0) {
+        setIsAnimating(false);
+        isProcessingRef.current = false;
         return;
       }
+
       const randomIndex = Math.floor(Math.random() * available.length);
       const finalNumber = available[randomIndex];
+      finalNumberRef.current = finalNumber.toString().padStart(5, '0');
 
-      if (finalNumber !== null) {
-        setCurrentNumber(finalNumber.toString().padStart(5, '0'));
-        setWinningNumbers(prev => [finalNumber, ...prev]);
-      }
+      // Stop digits one by one from right to left
+      const stopDigit = (index) => {
+        if (index < 0) {
+          // All digits stopped
+          setIsAnimating(false);
+          animatingDigitsRef.current = [false, false, false, false, false];
+          setAnimatingDigits([false, false, false, false, false]);
+          setWinningNumbers(prev => [finalNumber, ...prev]);
+          isProcessingRef.current = false;
+          return;
+        }
+
+        // Stop current digit by showing its final value
+        animatingDigitsRef.current[index] = false;
+        setAnimatingDigits([...animatingDigitsRef.current]);
+
+        // Stop next digit after delay
+        setTimeout(() => stopDigit(index - 1), 150);
+      };
+
+      stopDigit(4); // Start from rightmost digit
+
     } else {
-      // Start animation
+      // START: Begin animation
+      isProcessingRef.current = true;
+
       const available = getAvailableNumbers();
       if (available.length === 0) {
         alert('All numbers have been drawn!');
+        isProcessingRef.current = false;
         return;
       }
 
+      // Reset everything for new animation
+      animatingDigitsRef.current = [true, true, true, true, true];
+      setAnimatingDigits([true, true, true, true, true]);
+      finalNumberRef.current = '00000';
+      animationRef.current = true; // Flag to indicate animation is active
+
       setIsAnimating(true);
-      // Animation function that cycles through random digits
-      animationRef.current = setInterval(() => {
-        const randomDigits = [];
-        for (let i = 0; i < 5; i++) {
-          randomDigits.push(Math.floor(Math.random() * 10));
-        }
-        setCurrentNumber(randomDigits.join(''));
-      }, 50);
+
+      // Allow new actions after animation starts
+      setTimeout(() => {
+        isProcessingRef.current = false;
+      }, 200);
     }
   }, [isAnimating, getAvailableNumbers]);
 
   const handleKeyPress = useCallback((e) => {
     if (e.key === 'Enter' && !showSettings) {
+      e.preventDefault();
       handleButtonClick();
     }
   }, [showSettings, handleButtonClick]);
@@ -72,9 +129,6 @@ function App() {
     window.addEventListener('keydown', handleKeyPress);
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
-      if (animationRef.current) {
-        clearInterval(animationRef.current);
-      }
     };
   }, [handleKeyPress]);
 
@@ -99,20 +153,24 @@ function App() {
 
     setMinNumber(min);
     setMaxNumber(max);
+    setIsAnimating(false);
     setWinningNumbers([]);
     setCurrentNumber('00000');
+    animatingDigitsRef.current = [false, false, false, false, false];
+    setAnimatingDigits([false, false, false, false, false]);
+    animationRef.current = null;
+    isProcessingRef.current = false;
     setShowSettings(false);
   };
 
   const handleReset = () => {
+    setIsAnimating(false);
     setWinningNumbers([]);
     setCurrentNumber('00000');
-    if (isAnimating) {
-      setIsAnimating(false);
-      if (animationRef.current) {
-        clearInterval(animationRef.current);
-      }
-    }
+    animatingDigitsRef.current = [false, false, false, false, false];
+    setAnimatingDigits([false, false, false, false, false]);
+    animationRef.current = null;
+    isProcessingRef.current = false;
   };
 
   const digits = currentNumber.split('');
@@ -130,7 +188,7 @@ function App() {
         <div className="randomizer-section">
           <div className="slot-machine">
             {digits.map((digit, index) => (
-              <div key={index} className={`digit-slot ${isAnimating ? 'spinning' : ''}`}>
+              <div key={index} className={`digit-slot ${animatingDigits[index] ? 'spinning' : ''}`}>
                 <div className="digit">{digit}</div>
               </div>
             ))}
@@ -140,22 +198,11 @@ function App() {
             className={`action-btn ${isAnimating ? 'stop-btn' : 'start-btn'}`}
             onClick={handleButtonClick}
           >
-            {isAnimating ? '⏹ STOP' : '🎰 DRAW NUMBER'}
+            {isAnimating ? '⏹ STOP' : 'ACAK NOMOR'}
           </button>
 
           <div className="info-text">
             {isAnimating ? 'Press ENTER or click STOP to select number' : 'Press ENTER or click button to draw'}
-          </div>
-
-          <div className="stats">
-            <div className="stat-item">
-              <span className="stat-label">Range:</span>
-              <span className="stat-value">{minNumber.toString().padStart(5, '0')} - {maxNumber.toString().padStart(5, '0')}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Remaining:</span>
-              <span className="stat-value">{getAvailableNumbers().length}</span>
-            </div>
           </div>
         </div>
 

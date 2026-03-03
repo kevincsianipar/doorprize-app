@@ -6,7 +6,7 @@
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #8b0000;
   min-height: 100vh;
 }
 
@@ -82,7 +82,7 @@ body {
 .digit-slot {
   width: 100px;
   height: 140px;
-  background: linear-gradient(145deg, #1a202c, #2d3748);
+  background: linear-gradient(145deg, #8b0000, #a52a2a);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -111,22 +111,45 @@ body {
 .digit {
   font-size: 5rem;
   font-weight: 800;
-  color: #ffd700;
+  color: #ffffff;
   text-shadow:
-    0 0 10px rgba(255, 215, 0, 0.5),
-    0 0 20px rgba(255, 215, 0, 0.3),
+    0 0 10px rgba(255, 255, 255, 0.5),
+    0 0 20px rgba(255, 255, 255, 0.3),
     2px 2px 4px rgba(0, 0, 0, 0.5);
   font-family: 'Courier New', monospace;
+  transition: all 0.1s ease-out;
 }
 
 .digit-slot.spinning .digit {
-  animation: spin 0.1s linear infinite;
+  animation: spin 0.15s ease-in-out infinite;
 }
 
 @keyframes spin {
-  0% { transform: translateY(0) scale(1); opacity: 1; }
-  50% { transform: translateY(-10px) scale(0.9); opacity: 0.7; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    filter: blur(0px);
+  }
+  25% {
+    transform: translateY(-15px) scale(0.95);
+    opacity: 0.6;
+    filter: blur(2px);
+  }
+  50% {
+    transform: translateY(-20px) scale(0.9);
+    opacity: 0.5;
+    filter: blur(3px);
+  }
+  75% {
+    transform: translateY(-15px) scale(0.95);
+    opacity: 0.6;
+    filter: blur(2px);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    filter: blur(0px);
+  }
 }
 
 .action-btn {
@@ -290,7 +313,7 @@ body {
 }
 
 .winner-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #8b0000 0%, #a52a2a 100%);
   border-radius: 12px;
   padding: 1.5rem;
   display: flex;
@@ -319,7 +342,7 @@ body {
 .winner-number {
   font-size: 1.8rem;
   font-weight: 800;
-  color: #ffd700;
+  color: #ffffff;
   font-family: 'Courier New', monospace;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
