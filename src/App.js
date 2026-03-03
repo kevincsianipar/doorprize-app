@@ -2,19 +2,19 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 
 function App() {
-  const [minNumber, setMinNumber] = useState(10000);
-  const [maxNumber, setMaxNumber] = useState(99999);
-  const [currentNumber, setCurrentNumber] = useState('00000');
+  const [minNumber, setMinNumber] = useState(1);
+  const [maxNumber, setMaxNumber] = useState(9999);
+  const [currentNumber, setCurrentNumber] = useState('0000');
   const [winningNumbers, setWinningNumbers] = useState([]);
   const [isAnimating, setIsAnimating] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [tempMin, setTempMin] = useState(10000);
-  const [tempMax, setTempMax] = useState(99999);
-  const [animatingDigits, setAnimatingDigits] = useState([false, false, false, false, false]);
+  const [tempMin, setTempMin] = useState(1);
+  const [tempMax, setTempMax] = useState(9999);
+  const [animatingDigits, setAnimatingDigits] = useState([false, false, false, false]);
   const animationRef = useRef(null);
-  const digitCounters = useRef([0, 0, 0, 0, 0]);
-  const finalNumberRef = useRef('00000');
-  const animatingDigitsRef = useRef([true, true, true, true, true]);
+  const digitCounters = useRef([0, 0, 0, 0]);
+  const finalNumberRef = useRef('0000');
+  const animatingDigitsRef = useRef([true, true, true, true]);
   const isProcessingRef = useRef(false);
 
   const getAvailableNumbers = useCallback(() => {
@@ -33,7 +33,7 @@ function App() {
 
     const animate = () => {
       const newDigits = [];
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 4; i++) {
         if (animatingDigitsRef.current[i]) {
           // Show random number if still animating
           newDigits.push(Math.floor(Math.random() * 10).toString());
@@ -68,15 +68,15 @@ function App() {
 
       const randomIndex = Math.floor(Math.random() * available.length);
       const finalNumber = available[randomIndex];
-      finalNumberRef.current = finalNumber.toString().padStart(5, '0');
+      finalNumberRef.current = finalNumber.toString().padStart(4, '0');
 
       // Stop digits one by one from right to left
       const stopDigit = (index) => {
         if (index < 0) {
           // All digits stopped
           setIsAnimating(false);
-          animatingDigitsRef.current = [false, false, false, false, false];
-          setAnimatingDigits([false, false, false, false, false]);
+          animatingDigitsRef.current = [false, false, false, false];
+          setAnimatingDigits([false, false, false, false]);
           setWinningNumbers(prev => [finalNumber, ...prev]);
           isProcessingRef.current = false;
           return;
@@ -90,7 +90,7 @@ function App() {
         setTimeout(() => stopDigit(index - 1), 300);
       };
 
-      stopDigit(4); // Start from rightmost digit
+      stopDigit(3); // Start from rightmost digit
 
     } else {
       // START: Begin animation
@@ -104,9 +104,9 @@ function App() {
       }
 
       // Reset everything for new animation
-      animatingDigitsRef.current = [true, true, true, true, true];
-      setAnimatingDigits([true, true, true, true, true]);
-      finalNumberRef.current = '00000';
+      animatingDigitsRef.current = [true, true, true, true];
+      setAnimatingDigits([true, true, true, true]);
+      finalNumberRef.current = '0000';
       animationRef.current = true; // Flag to indicate animation is active
 
       setIsAnimating(true);
@@ -141,8 +141,8 @@ function App() {
       return;
     }
 
-    if (min < 10000 || max > 99999) {
-      alert('Numbers must be between 10000 and 99999 (5 digits)');
+    if (min < 1 || max > 9999) {
+      alert('Numbers must be between 1 and 9999 (4 digits)');
       return;
     }
 
@@ -155,9 +155,9 @@ function App() {
     setMaxNumber(max);
     setIsAnimating(false);
     setWinningNumbers([]);
-    setCurrentNumber('00000');
-    animatingDigitsRef.current = [false, false, false, false, false];
-    setAnimatingDigits([false, false, false, false, false]);
+    setCurrentNumber('0000');
+    animatingDigitsRef.current = [false, false, false, false];
+    setAnimatingDigits([false, false, false, false]);
     animationRef.current = null;
     isProcessingRef.current = false;
     setShowSettings(false);
@@ -166,9 +166,9 @@ function App() {
   const handleReset = () => {
     setIsAnimating(false);
     setWinningNumbers([]);
-    setCurrentNumber('00000');
-    animatingDigitsRef.current = [false, false, false, false, false];
-    setAnimatingDigits([false, false, false, false, false]);
+    setCurrentNumber('0000');
+    animatingDigitsRef.current = [false, false, false, false];
+    setAnimatingDigits([false, false, false, false]);
     animationRef.current = null;
     isProcessingRef.current = false;
   };
@@ -222,7 +222,7 @@ function App() {
             ) : (
               winningNumbers.map((number, index) => (
                 <div key={index} className="winner-card">
-                  <div className="winner-number">{number.toString().padStart(5, '0')}</div>
+                  <div className="winner-number">{number.toString().padStart(4, '0')}</div>
                   <div className="winner-order">Draw #{winningNumbers.length - index}</div>
                 </div>
               ))
@@ -237,23 +237,23 @@ function App() {
             <h2>Settings</h2>
             <div className="settings-form">
               <div className="form-group">
-                <label>Minimum Number (5 digits):</label>
+                <label>Minimum Number (1-9999):</label>
                 <input
                   type="number"
                   value={tempMin}
                   onChange={(e) => setTempMin(e.target.value)}
-                  min="10000"
-                  max="99999"
+                  min="1"
+                  max="9999"
                 />
               </div>
               <div className="form-group">
-                <label>Maximum Number (5 digits):</label>
+                <label>Maximum Number (1-9999):</label>
                 <input
                   type="number"
                   value={tempMax}
                   onChange={(e) => setTempMax(e.target.value)}
-                  min="10000"
-                  max="99999"
+                  min="1"
+                  max="9999"
                 />
               </div>
               <div className="warning-text">
