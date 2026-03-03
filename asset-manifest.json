@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/doorprize-app/static/css/main.0db0c145.css",
-    "main.js": "/doorprize-app/static/js/main.05add8e5.js",
+    "main.js": "/doorprize-app/static/js/main.9b35a71c.js",
     "static/js/453.6c61a5d4.chunk.js": "/doorprize-app/static/js/453.6c61a5d4.chunk.js",
     "index.html": "/doorprize-app/index.html",
     "main.0db0c145.css.map": "/doorprize-app/static/css/main.0db0c145.css.map",
-    "main.05add8e5.js.map": "/doorprize-app/static/js/main.05add8e5.js.map",
+    "main.9b35a71c.js.map": "/doorprize-app/static/js/main.9b35a71c.js.map",
     "453.6c61a5d4.chunk.js.map": "/doorprize-app/static/js/453.6c61a5d4.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.0db0c145.css",
-    "static/js/main.05add8e5.js"
+    "static/js/main.9b35a71c.js"
   ]
 }
