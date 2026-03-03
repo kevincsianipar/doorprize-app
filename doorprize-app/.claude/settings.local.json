@@ -1,8 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm start)",
-      "Bash(lsof -ti:3000 | xargs kill -9 2>/dev/null; echo \"Port cleared\")"
+      "Bash(git -C /Users/kevin.christian/Documents/doorprize-app status)",
+      "Bash(git -C /Users/kevin.christian/Documents/doorprize-app add -A)"
     ]
   }
 }
