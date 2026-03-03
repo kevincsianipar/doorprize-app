@@ -87,7 +87,7 @@ function App() {
         setAnimatingDigits([...animatingDigitsRef.current]);
 
         // Stop next digit after delay
-        setTimeout(() => stopDigit(index - 1), 150);
+        setTimeout(() => stopDigit(index - 1), 300);
       };
 
       stopDigit(4); // Start from rightmost digit
