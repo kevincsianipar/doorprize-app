@@ -1,122 +1,197 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
 
+const STORAGE_KEY = 'doorprize_state';
+
+const generateId = () => Math.random().toString(36).substr(2, 9);
+
+const createDefaultCategory = () => ({
+  id: generateId(),
+  name: 'Grand Prize',
+  prizeName: '',
+  pickCount: 1,
+  winners: [],
+});
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return null;
+}
+
+function saveState(categories, activeCategoryId, globalMin, globalMax) {
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ categories, activeCategoryId, globalMin, globalMax })
+    );
+  } catch (e) {}
+}
+
 function App() {
-  const [minNumber, setMinNumber] = useState(1);
-  const [maxNumber, setMaxNumber] = useState(9999);
+  const [initState] = useState(() => {
+    const saved = loadState();
+    if (saved?.categories?.length) {
+      // Migrate old format: per-category min/max → global min/max
+      const globalMin = saved.globalMin ?? saved.categories[0]?.min ?? 1;
+      const globalMax = saved.globalMax ?? saved.categories[0]?.max ?? 9999;
+      const cats = saved.categories.map(c => ({
+        ...c,
+        prizeName: c.prizeName ?? '',
+        pickCount: c.pickCount ?? 1,
+      }));
+      const activeId = cats.find(c => c.id === saved.activeCategoryId)
+        ? saved.activeCategoryId
+        : cats[0].id;
+      return { categories: cats, activeCategoryId: activeId, globalMin, globalMax };
+    }
+    const cat = createDefaultCategory();
+    return { categories: [cat], activeCategoryId: cat.id, globalMin: 1, globalMax: 9999 };
+  });
+
+  const [categories, setCategories] = useState(initState.categories);
+  const [activeCategoryId, setActiveCategoryId] = useState(initState.activeCategoryId);
+  const [globalMin, setGlobalMin] = useState(initState.globalMin);
+  const [globalMax, setGlobalMax] = useState(initState.globalMax);
   const [currentNumber, setCurrentNumber] = useState('0000');
-  const [winningNumbers, setWinningNumbers] = useState([]);
   const [isAnimating, setIsAnimating] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [tempMin, setTempMin] = useState(1);
-  const [tempMax, setTempMax] = useState(9999);
   const [animatingDigits, setAnimatingDigits] = useState([false, false, false, false]);
+
+  // Settings editing state
+  const [editingGlobalMin, setEditingGlobalMin] = useState('1');
+  const [editingGlobalMax, setEditingGlobalMax] = useState('9999');
+  const [editingCategories, setEditingCategories] = useState([]);
+
+  const [isDramatic, setIsDramatic] = useState(false);
+  const [lockingDigits, setLockingDigits] = useState([false, false, false, false]);
+
   const animationRef = useRef(null);
-  const digitCounters = useRef([0, 0, 0, 0]);
   const finalNumberRef = useRef('0000');
-  const animatingDigitsRef = useRef([true, true, true, true]);
+  const animatingDigitsRef = useRef([false, false, false, false]);
   const isProcessingRef = useRef(false);
+  const animationSpeedRef = useRef(80);
+  const stopDelayRef = useRef(300);
+  const isDramaticRef = useRef(false);
+
+  useEffect(() => {
+    saveState(categories, activeCategoryId, globalMin, globalMax);
+  }, [categories, activeCategoryId, globalMin, globalMax]);
+
+  const activeCategory = categories.find(c => c.id === activeCategoryId) || categories[0];
+
+  const validDrawsCount = activeCategory
+    ? activeCategory.winners.filter(w => w.status !== 'disqualified').length
+    : 0;
+  const remainingPicks = activeCategory
+    ? Math.max(0, activeCategory.pickCount - validDrawsCount)
+    : 0;
+  const isCategoryFull = activeCategory ? remainingPicks <= 0 : false;
+
+  const getAllDrawnNumbers = useCallback(() => {
+    const drawn = new Set();
+    categories.forEach(cat => {
+      cat.winners.forEach(w => drawn.add(w.number));
+    });
+    return drawn;
+  }, [categories]);
 
   const getAvailableNumbers = useCallback(() => {
+    const drawn = getAllDrawnNumbers();
     const available = [];
-    for (let i = minNumber; i <= maxNumber; i++) {
-      if (!winningNumbers.includes(i)) {
-        available.push(i);
-      }
+    for (let i = globalMin; i <= globalMax; i++) {
+      if (!drawn.has(i)) available.push(i);
     }
     return available;
-  }, [minNumber, maxNumber, winningNumbers]);
+  }, [globalMin, globalMax, getAllDrawnNumbers]);
 
-  // Animation loop - runs continuously when interval is active
   useEffect(() => {
     if (!isAnimating || !animationRef.current) return;
-
     const animate = () => {
       const newDigits = [];
       for (let i = 0; i < 4; i++) {
         if (animatingDigitsRef.current[i]) {
-          // Show random number if still animating
           newDigits.push(Math.floor(Math.random() * 10).toString());
         } else {
-          // Show final digit if stopped
           newDigits.push(finalNumberRef.current[i] || '0');
         }
       }
       setCurrentNumber(newDigits.join(''));
     };
-
-    const interval = setInterval(animate, 80);
+    const interval = setInterval(animate, animationSpeedRef.current);
     return () => clearInterval(interval);
   }, [isAnimating]);
 
+  const addWinnerToCategory = useCallback((number) => {
+    setCategories(prev => prev.map(cat =>
+      cat.id === activeCategoryId
+        ? { ...cat, winners: [{ number, status: 'pending' }, ...cat.winners] }
+        : cat
+    ));
+  }, [activeCategoryId]);
+
   const handleButtonClick = useCallback(() => {
-    // Prevent multiple rapid clicks/keypresses
-    if (isProcessingRef.current) {
-      return;
-    }
+    if (isProcessingRef.current) return;
 
     if (isAnimating) {
-      // STOP: Generate final number and stop digits one by one
       isProcessingRef.current = true;
-
       const available = getAvailableNumbers();
       if (available.length === 0) {
         setIsAnimating(false);
         isProcessingRef.current = false;
         return;
       }
-
-      const randomIndex = Math.floor(Math.random() * available.length);
-      const finalNumber = available[randomIndex];
+      const finalNumber = available[Math.floor(Math.random() * available.length)];
       finalNumberRef.current = finalNumber.toString().padStart(4, '0');
 
-      // Stop digits one by one from right to left
+      const dramatic = isDramaticRef.current;
       const stopDigit = (index) => {
         if (index < 0) {
-          // All digits stopped
           setIsAnimating(false);
+          setIsDramatic(false);
           animatingDigitsRef.current = [false, false, false, false];
           setAnimatingDigits([false, false, false, false]);
-          setWinningNumbers(prev => [finalNumber, ...prev]);
+          setLockingDigits([false, false, false, false]);
+          addWinnerToCategory(finalNumber);
           isProcessingRef.current = false;
           return;
         }
-
-        // Stop current digit by showing its final value
         animatingDigitsRef.current[index] = false;
         setAnimatingDigits([...animatingDigitsRef.current]);
-
-        // Stop next digit after delay
-        setTimeout(() => stopDigit(index - 1), 300);
+        if (dramatic) {
+          setLockingDigits(prev => { const n = [...prev]; n[index] = true; return n; });
+          setTimeout(() => {
+            setLockingDigits(prev => { const n = [...prev]; n[index] = false; return n; });
+          }, 450);
+        }
+        setTimeout(() => stopDigit(index - 1), stopDelayRef.current);
       };
 
-      stopDigit(3); // Start from rightmost digit
-
+      stopDigit(3);
     } else {
-      // START: Begin animation
+      if (isCategoryFull) return;
       isProcessingRef.current = true;
-
       const available = getAvailableNumbers();
       if (available.length === 0) {
         alert('All numbers have been drawn!');
         isProcessingRef.current = false;
         return;
       }
-
-      // Reset everything for new animation
+      const dramatic = activeCategory.pickCount === 1;
+      animationSpeedRef.current = 80;
+      stopDelayRef.current = dramatic ? 700 : 300;
+      isDramaticRef.current = dramatic;
+      setIsDramatic(dramatic);
       animatingDigitsRef.current = [true, true, true, true];
       setAnimatingDigits([true, true, true, true]);
       finalNumberRef.current = '0000';
-      animationRef.current = true; // Flag to indicate animation is active
-
+      animationRef.current = true;
       setIsAnimating(true);
-
-      // Allow new actions after animation starts
-      setTimeout(() => {
-        isProcessingRef.current = false;
-      }, 200);
+      setTimeout(() => { isProcessingRef.current = false; }, 200);
     }
-  }, [isAnimating, getAvailableNumbers]);
+  }, [isAnimating, isCategoryFull, activeCategory, getAvailableNumbers, addWinnerToCategory]);
 
   const handleKeyPress = useCallback((e) => {
     if (e.key === 'Enter' && !showSettings) {
@@ -127,103 +202,235 @@ function App() {
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyPress);
-    return () => {
-      window.removeEventListener('keydown', handleKeyPress);
-    };
+    return () => window.removeEventListener('keydown', handleKeyPress);
   }, [handleKeyPress]);
 
-  const handleSaveSettings = () => {
-    const min = parseInt(tempMin);
-    const max = parseInt(tempMax);
+  const updateWinnerStatus = (categoryId, number, newStatus) => {
+    setCategories(prev => prev.map(cat =>
+      cat.id === categoryId
+        ? { ...cat, winners: cat.winners.map(w => w.number === number ? { ...w, status: newStatus } : w) }
+        : cat
+    ));
+  };
 
-    if (isNaN(min) || isNaN(max)) {
-      alert('Please enter valid numbers');
-      return;
-    }
-
-    if (min < 1 || max > 9999) {
-      alert('Numbers must be between 1 and 9999 (4 digits)');
-      return;
-    }
-
-    if (min >= max) {
-      alert('Minimum must be less than maximum');
-      return;
-    }
-
-    setMinNumber(min);
-    setMaxNumber(max);
+  const stopAnimation = () => {
     setIsAnimating(false);
-    setWinningNumbers([]);
     setCurrentNumber('0000');
     animatingDigitsRef.current = [false, false, false, false];
     setAnimatingDigits([false, false, false, false]);
     animationRef.current = null;
     isProcessingRef.current = false;
+  };
+
+  const openSettings = () => {
+    setEditingGlobalMin(globalMin.toString());
+    setEditingGlobalMax(globalMax.toString());
+    setEditingCategories(categories.map(c => ({
+      ...c,
+      pickCount: c.pickCount.toString(),
+    })));
+    setShowSettings(true);
+  };
+
+  const addEditingCategory = () => {
+    setEditingCategories(prev => [
+      ...prev,
+      { id: generateId(), name: `Prize #${prev.length + 1}`, prizeName: '', pickCount: '1', winners: [] },
+    ]);
+  };
+
+  const removeEditingCategory = (id) => {
+    if (editingCategories.length <= 1) {
+      alert('You must have at least one category.');
+      return;
+    }
+    setEditingCategories(prev => prev.filter(c => c.id !== id));
+  };
+
+  const updateEditingCategory = (id, field, value) => {
+    setEditingCategories(prev => prev.map(c => c.id === id ? { ...c, [field]: value } : c));
+  };
+
+  const handleSaveSettings = () => {
+    const min = parseInt(editingGlobalMin);
+    const max = parseInt(editingGlobalMax);
+    if (isNaN(min) || isNaN(max)) {
+      alert('Please enter a valid number range.');
+      return;
+    }
+    if (min < 1 || max > 9999) {
+      alert('Numbers must be between 1 and 9999.');
+      return;
+    }
+    if (min >= max) {
+      alert('Minimum must be less than maximum.');
+      return;
+    }
+
+    for (const cat of editingCategories) {
+      if (!cat.name.trim()) {
+        alert('Category name cannot be empty.');
+        return;
+      }
+      const picks = parseInt(cat.pickCount);
+      if (isNaN(picks) || picks < 1) {
+        alert(`Pick count for "${cat.name}" must be at least 1.`);
+        return;
+      }
+    }
+
+    const rangeChanged = min !== globalMin || max !== globalMax;
+
+    const newCategories = editingCategories.map(ec => {
+      const existing = categories.find(c => c.id === ec.id);
+      return {
+        ...ec,
+        pickCount: parseInt(ec.pickCount),
+        winners: rangeChanged ? [] : (existing?.winners || []),
+      };
+    });
+
+    setGlobalMin(min);
+    setGlobalMax(max);
+    setCategories(newCategories);
+    if (!newCategories.find(c => c.id === activeCategoryId)) {
+      setActiveCategoryId(newCategories[0].id);
+    }
+    stopAnimation();
     setShowSettings(false);
   };
 
-  const handleReset = () => {
-    setIsAnimating(false);
-    setWinningNumbers([]);
-    setCurrentNumber('0000');
-    animatingDigitsRef.current = [false, false, false, false];
-    setAnimatingDigits([false, false, false, false]);
-    animationRef.current = null;
-    isProcessingRef.current = false;
-  };
-
+  const totalRange = globalMax - globalMin + 1;
+  const availableCount = getAvailableNumbers().length;
   const digits = currentNumber.split('');
+  const winners = activeCategory?.winners || [];
+
+  let infoText;
+  if (isAnimating) {
+    infoText = 'Press ENTER or click STOP to select number';
+  } else if (isCategoryFull) {
+    infoText = `Category complete — all ${activeCategory.pickCount} pick${activeCategory.pickCount !== 1 ? 's' : ''} used`;
+  } else {
+    infoText = `${availableCount} of ${totalRange} numbers available · ${remainingPicks} pick${remainingPicks !== 1 ? 's' : ''} remaining`;
+  }
 
   return (
     <div className="App">
       <header className="app-header">
         <h1 className="app-title">Bona Taon Punguan Sianipar Dohot Boruna Na Sian Lumban Balik Tahun 2026</h1>
-        <button className="settings-btn" onClick={() => setShowSettings(true)}>
+        <button className="settings-btn" onClick={openSettings}>
           ⚙️ Settings
         </button>
       </header>
 
+      {categories.length > 1 && (
+        <div className="category-bar">
+          {categories.map(cat => {
+            const drawn = cat.winners.filter(w => w.status !== 'disqualified').length;
+            const isFull = drawn >= cat.pickCount;
+            return (
+              <button
+                key={cat.id}
+                className={`category-tab ${cat.id === activeCategoryId ? 'active' : ''} ${isFull ? 'tab-full' : ''}`}
+                onClick={() => { if (!isAnimating) setActiveCategoryId(cat.id); }}
+              >
+                <span className="category-tab-name">{cat.name}</span>
+                <span className={`category-tab-badge ${isFull ? 'badge-full' : ''}`}>
+                  {drawn}/{cat.pickCount}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="main-container">
         <div className="randomizer-section">
-          <div className="slot-machine">
+          <div className="active-category-header">
+            <div className="active-category-label">{activeCategory?.name}</div>
+            {activeCategory?.prizeName && (
+              <div className="active-prize-name">{activeCategory.prizeName}</div>
+            )}
+          </div>
+
+          <div className={`slot-machine ${isDramatic ? 'dramatic' : ''}`}>
             {digits.map((digit, index) => (
-              <div key={index} className={`digit-slot ${animatingDigits[index] ? 'spinning' : ''}`}>
+              <div
+                key={index}
+                className={`digit-slot ${animatingDigits[index] ? 'spinning' : ''} ${lockingDigits[index] ? 'locking' : ''}`}
+              >
                 <div className="digit">{digit}</div>
               </div>
             ))}
           </div>
 
           <button
-            className={`action-btn ${isAnimating ? 'stop-btn' : 'start-btn'}`}
+            className={`action-btn ${isAnimating ? 'stop-btn' : isCategoryFull ? 'full-btn' : 'start-btn'}`}
             onClick={handleButtonClick}
+            disabled={isCategoryFull && !isAnimating}
           >
-            {isAnimating ? '⏹ STOP' : 'ACAK NOMOR'}
+            {isAnimating ? '⏹ STOP' : isCategoryFull ? '✓ All Picks Used' : 'ACAK NOMOR'}
           </button>
 
-          <div className="info-text">
-            {isAnimating ? 'Press ENTER or click STOP to select number' : 'Press ENTER or click button to draw'}
+          <div className={`info-text ${isCategoryFull && !isAnimating ? 'info-complete' : ''}`}>
+            {infoText}
           </div>
         </div>
 
         <div className="winners-section">
           <div className="winners-header">
-            <h2>Winning Numbers</h2>
-            {winningNumbers.length > 0 && (
-              <button className="reset-btn" onClick={handleReset}>
-                🔄 Reset
-              </button>
-            )}
+            <div className="winners-header-title">
+              <div className="winners-title-text">
+                <h2>{activeCategory?.name}</h2>
+                {activeCategory?.prizeName && (
+                  <div className="winners-prize-name">{activeCategory.prizeName}</div>
+                )}
+              </div>
+              <span className={`winners-count ${isCategoryFull ? 'count-full' : ''}`}>
+                {validDrawsCount}/{activeCategory?.pickCount}
+              </span>
+            </div>
           </div>
 
           <div className="winners-list">
-            {winningNumbers.length === 0 ? (
+            {winners.length === 0 ? (
               <div className="no-winners">No winners yet</div>
             ) : (
-              winningNumbers.map((number, index) => (
-                <div key={index} className="winner-card">
-                  <div className="winner-number">{number.toString().padStart(4, '0')}</div>
-                  <div className="winner-order">Draw #{winningNumbers.length - index}</div>
+              winners.map((winner, index) => (
+                <div
+                  key={winner.number}
+                  className={`winner-card winner-${winner.status}`}
+                >
+                  <div className="winner-info">
+                    <div className="winner-number">{winner.number.toString().padStart(4, '0')}</div>
+                    <div className="winner-meta">
+                      <span className="winner-order">Draw #{winners.length - index}</span>
+                      {winner.status === 'confirmed' && (
+                        <span className="winner-status-tag confirmed-tag">Confirmed</span>
+                      )}
+                      {winner.status === 'disqualified' && (
+                        <span className="winner-status-tag disqualified-tag">Disqualified</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="winner-actions">
+                    <button
+                      className={`winner-action-btn confirm-btn ${winner.status === 'confirmed' ? 'active' : ''}`}
+                      onClick={() => updateWinnerStatus(
+                        activeCategoryId, winner.number,
+                        winner.status === 'confirmed' ? 'pending' : 'confirmed'
+                      )}
+                      title={winner.status === 'confirmed' ? 'Unmark confirmed' : 'Mark as confirmed'}
+                    >✓</button>
+                    <button
+                      className={`winner-action-btn disqualify-btn ${winner.status === 'disqualified' ? 'active' : ''}`}
+                      onClick={() => updateWinnerStatus(
+                        activeCategoryId, winner.number,
+                        winner.status === 'disqualified' ? 'pending' : 'disqualified'
+                      )}
+                      title={winner.status === 'disqualified' ? 'Restore' : 'Disqualify'}
+                    >✕</button>
+                  </div>
                 </div>
               ))
             )}
@@ -233,39 +440,98 @@ function App() {
 
       {showSettings && (
         <div className="modal-overlay" onClick={() => setShowSettings(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
             <h2>Settings</h2>
             <div className="settings-form">
-              <div className="form-group">
-                <label>Minimum Number (1-9999):</label>
-                <input
-                  type="number"
-                  value={tempMin}
-                  onChange={(e) => setTempMin(e.target.value)}
-                  min="1"
-                  max="9999"
-                />
+
+              {/* Global Number Range */}
+              <div className="settings-section">
+                <label className="settings-section-label">Number Range <span className="label-hint">(applies to all categories)</span></label>
+                <div className="global-range-row">
+                  <div className="range-field">
+                    <span className="range-field-label">Min</span>
+                    <input
+                      type="number"
+                      value={editingGlobalMin}
+                      onChange={(e) => setEditingGlobalMin(e.target.value)}
+                      min="1" max="9999"
+                      className="range-number-input"
+                    />
+                  </div>
+                  <span className="range-dash">–</span>
+                  <div className="range-field">
+                    <span className="range-field-label">Max</span>
+                    <input
+                      type="number"
+                      value={editingGlobalMax}
+                      onChange={(e) => setEditingGlobalMax(e.target.value)}
+                      min="1" max="9999"
+                      className="range-number-input"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="form-group">
-                <label>Maximum Number (1-9999):</label>
-                <input
-                  type="number"
-                  value={tempMax}
-                  onChange={(e) => setTempMax(e.target.value)}
-                  min="1"
-                  max="9999"
-                />
+
+              {/* Prize Categories */}
+              <div className="settings-section">
+                <div className="categories-section-header">
+                  <label className="settings-section-label">Prize Categories</label>
+                  <button className="btn-add-category" onClick={addEditingCategory}>
+                    + Add Category
+                  </button>
+                </div>
+
+                <div className="category-table-header">
+                  <span>Category Name</span>
+                  <span>Prize / Description</span>
+                  <span className="col-picks">Picks</span>
+                  <span></span>
+                </div>
+
+                <div className="categories-list">
+                  {editingCategories.map((cat) => (
+                    <div key={cat.id} className="category-edit-row">
+                      <input
+                        type="text"
+                        className="category-name-input"
+                        placeholder="e.g. Grand Prize"
+                        value={cat.name}
+                        onChange={(e) => updateEditingCategory(cat.id, 'name', e.target.value)}
+                      />
+                      <input
+                        type="text"
+                        className="category-prize-input"
+                        placeholder="e.g. Electric Bike"
+                        value={cat.prizeName}
+                        onChange={(e) => updateEditingCategory(cat.id, 'prizeName', e.target.value)}
+                      />
+                      <input
+                        type="number"
+                        className="category-picks-input"
+                        placeholder="1"
+                        value={cat.pickCount}
+                        onChange={(e) => updateEditingCategory(cat.id, 'pickCount', e.target.value)}
+                        min="1"
+                        max="999"
+                      />
+                      <button
+                        className="btn-remove-category"
+                        onClick={() => removeEditingCategory(cat.id)}
+                        title="Remove category"
+                        disabled={editingCategories.length <= 1}
+                      >✕</button>
+                    </div>
+                  ))}
+                </div>
               </div>
+
               <div className="warning-text">
-                ⚠️ Changing settings will reset all winning numbers
+                ⚠️ Changing the number range will clear all winning numbers across all categories. Numbers drawn in any category are excluded from all others.
               </div>
+
               <div className="modal-actions">
-                <button className="btn-cancel" onClick={() => setShowSettings(false)}>
-                  Cancel
-                </button>
-                <button className="btn-save" onClick={handleSaveSettings}>
-                  Save
-                </button>
+                <button className="btn-cancel" onClick={() => setShowSettings(false)}>Cancel</button>
+                <button className="btn-save" onClick={handleSaveSettings}>Save</button>
               </div>
             </div>
           </div>
