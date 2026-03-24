@@ -7,19 +7,21 @@
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background: #8b0000;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .App {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 /* ── Header ── */
 .app-header {
   background: rgba(255, 255, 255, 0.95);
-  padding: 1.5rem 2rem;
+  padding: 1rem 1rem;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   display: flex;
   justify-content: space-between;
@@ -60,7 +62,7 @@ body {
   background: rgba(0, 0, 0, 0.25);
   display: flex;
   gap: 0.5rem;
-  padding: 0.75rem 2rem;
+  padding: 0.5rem 1rem;
   overflow-x: auto;
   flex-shrink: 0;
 }
@@ -150,16 +152,20 @@ body {
 .main-container {
   display: flex;
   flex: 1;
-  padding: 2rem;
-  gap: 2rem;
+  padding: 0.75rem 1rem;
+  gap: 1rem;
+  align-items: stretch;
+  min-height: 0;
 }
 
 /* ── Randomizer ── */
 .randomizer-section {
-  flex: 3;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
-  padding: 3rem;
+  flex: 13;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.78)),
+    url('./bg-batak.png') center / cover no-repeat;
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -168,40 +174,38 @@ body {
 }
 
 .active-category-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.3rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .active-category-label {
-  font-size: 1.5rem;
+  font-size: 1.7rem;
   font-weight: 700;
-  color: #8b0000;
+  color: #ffffff;
   text-transform: uppercase;
   letter-spacing: 2px;
-  padding: 0.5rem 1.5rem;
-  border: 2.5px solid #8b0000;
+  padding: 0.55rem 1.75rem;
+  background: #4a0000;
   border-radius: 50px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
-.active-prize-name {
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: #4a5568;
+.active-prize-separator {
+  font-weight: 400;
+  color: #ffffff;
+  opacity: 0.9;
+  letter-spacing: 1px;
 }
 
 .slot-machine {
   display: flex;
   gap: 1rem;
-  margin-bottom: 3rem;
+  margin-bottom: 1.5rem;
   perspective: 1000px;
 }
 
 .digit-slot {
-  width: 120px;
-  height: 165px;
+  width: 135px;
+  height: 185px;
   background: linear-gradient(145deg, #8b0000, #a52a2a);
   border-radius: 14px;
   display: flex;
@@ -237,7 +241,7 @@ body {
 }
 
 .digit {
-  font-size: 6rem;
+  font-size: 7rem;
   font-weight: 800;
   color: #ffffff;
   text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
@@ -355,15 +359,15 @@ body {
 
 /* ── Winners Section ── */
 .winners-section {
-  flex: 1;
+  flex: 7;
   background: rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
-  padding: 2rem;
+  border-radius: 16px;
+  padding: 1.25rem 1.25rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 200px);
-  min-width: 280px;
+  min-width: 300px;
+  overflow: hidden;
 }
 
 .winners-header {
@@ -386,7 +390,7 @@ body {
 
 .winners-header h2 {
   color: #2d3748;
-  font-size: 1.3rem;
+  font-size: 1.5rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -418,9 +422,10 @@ body {
 .winners-list {
   flex: 1;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  align-content: start;
 }
 
 .winners-list::-webkit-scrollbar {
@@ -452,7 +457,7 @@ body {
 /* ── Winner Cards ── */
 .winner-card {
   border-radius: 12px;
-  padding: 0.9rem 1rem;
+  padding: 0.8rem 0.9rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -504,13 +509,14 @@ body {
 }
 
 .winner-number {
-  font-size: 1.7rem;
-  font-weight: 800;
+  font-size: 2.2rem;
+  font-weight: 900;
   color: #ffffff;
   font-family: 'Courier New', monospace;
   text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
   line-height: 1;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.2rem;
+  letter-spacing: 1px;
 }
 
 .winner-meta {
@@ -521,15 +527,15 @@ body {
 }
 
 .winner-order {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.8);
   font-weight: 600;
 }
 
 .winner-status-tag {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 700;
-  padding: 0.1rem 0.45rem;
+  padding: 0.1rem 0.4rem;
   border-radius: 50px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -933,6 +939,11 @@ body {
 
 /* ── Responsive ── */
 @media (max-width: 1024px) {
+  body, .App {
+    height: auto;
+    overflow: auto;
+  }
+
   .main-container {
     flex-direction: column;
   }
@@ -943,8 +954,13 @@ body {
 
   .winners-section {
     flex: 1;
-    max-height: 400px;
+    max-height: 500px;
     min-width: unset;
+    overflow: hidden;
+  }
+
+  .winners-list {
+    grid-template-columns: 1fr 1fr;
   }
 
   .app-title {
@@ -952,20 +968,16 @@ body {
   }
 
   .digit-slot {
-    width: 80px;
-    height: 112px;
+    width: 90px;
+    height: 124px;
   }
 
   .digit {
-    font-size: 4rem;
+    font-size: 4.5rem;
   }
 
   .active-category-label {
-    font-size: 1.2rem;
-  }
-
-  .active-prize-name {
-    font-size: 1.05rem;
+    font-size: 1.3rem;
   }
 
   .action-btn {
@@ -989,21 +1001,17 @@ body {
   }
 
   .digit-slot {
-    width: 56px;
-    height: 78px;
+    width: 62px;
+    height: 86px;
   }
 
   .digit {
-    font-size: 2.8rem;
+    font-size: 3.2rem;
   }
 
   .active-category-label {
     font-size: 1rem;
     padding: 0.35rem 1rem;
-  }
-
-  .active-prize-name {
-    font-size: 0.95rem;
   }
 
   .slot-machine {
@@ -1013,6 +1021,10 @@ body {
   .action-btn {
     padding: 0.75rem 1.5rem;
     font-size: 1rem;
+  }
+
+  .winners-list {
+    grid-template-columns: 1fr;
   }
 
   .randomizer-section {

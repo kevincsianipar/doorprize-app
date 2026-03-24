@@ -347,10 +347,12 @@ function App() {
       <div className="main-container">
         <div className="randomizer-section">
           <div className="active-category-header">
-            <div className="active-category-label">{activeCategory?.name}</div>
-            {activeCategory?.prizeName && (
-              <div className="active-prize-name">{activeCategory.prizeName}</div>
-            )}
+            <div className="active-category-label">
+              {activeCategory?.name}
+              {activeCategory?.prizeName && (
+                <span className="active-prize-separator"> | {activeCategory.prizeName}</span>
+              )}
+            </div>
           </div>
 
           <div className={`slot-machine ${isDramatic ? 'dramatic' : ''}`}>
@@ -409,7 +411,7 @@ function App() {
                         <span className="winner-status-tag confirmed-tag">Confirmed</span>
                       )}
                       {winner.status === 'disqualified' && (
-                        <span className="winner-status-tag disqualified-tag">Disqualified</span>
+                        <span className="winner-status-tag disqualified-tag">DSQ</span>
                       )}
                     </div>
                   </div>
