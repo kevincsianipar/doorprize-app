@@ -5,6 +5,31 @@ const STORAGE_KEY = 'doorprize_state';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
+const FIREWORK_COLORS = ['#ffd700', '#ff8c00', '#ff4500', '#ffffff', '#ffec00', '#ff6347'];
+
+function generateFireworks() {
+  const bursts = [];
+  for (let b = 0; b < 4; b++) {
+    const particles = [];
+    const count = 14;
+    for (let p = 0; p < count; p++) {
+      particles.push({
+        angle: `${((360 / count) * p + Math.random() * 15).toFixed(1)}deg`,
+        dist: `${Math.round(60 + Math.random() * 60)}px`,
+        color: FIREWORK_COLORS[Math.floor(Math.random() * FIREWORK_COLORS.length)],
+        delay: `${(Math.random() * 0.3).toFixed(2)}s`,
+      });
+    }
+    bursts.push({
+      id: generateId(),
+      x: `${(15 + Math.random() * 70).toFixed(1)}%`,
+      y: `${(20 + Math.random() * 60).toFixed(1)}%`,
+      particles,
+    });
+  }
+  return bursts;
+}
+
 const createDefaultCategory = () => ({
   id: generateId(),
   name: 'Grand Prize',
@@ -21,11 +46,13 @@ function loadState() {
   return null;
 }
 
-function saveState(categories, activeCategoryId, globalMin, globalMax) {
+const DEFAULT_TITLE = 'Bona Taon Punguan Sianipar Dohot Boruna Na Sian Lumban Balik Tahun 2026';
+
+function saveState(categories, activeCategoryId, globalMin, globalMax, appTitle) {
   try {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ categories, activeCategoryId, globalMin, globalMax })
+      JSON.stringify({ categories, activeCategoryId, globalMin, globalMax, appTitle })
     );
   } catch (e) {}
 }
@@ -45,16 +72,17 @@ function App() {
       const activeId = cats.find(c => c.id === saved.activeCategoryId)
         ? saved.activeCategoryId
         : cats[0].id;
-      return { categories: cats, activeCategoryId: activeId, globalMin, globalMax };
+      return { categories: cats, activeCategoryId: activeId, globalMin, globalMax, appTitle: saved.appTitle ?? DEFAULT_TITLE };
     }
     const cat = createDefaultCategory();
-    return { categories: [cat], activeCategoryId: cat.id, globalMin: 1, globalMax: 9999 };
+    return { categories: [cat], activeCategoryId: cat.id, globalMin: 1, globalMax: 9999, appTitle: DEFAULT_TITLE };
   });
 
   const [categories, setCategories] = useState(initState.categories);
   const [activeCategoryId, setActiveCategoryId] = useState(initState.activeCategoryId);
   const [globalMin, setGlobalMin] = useState(initState.globalMin);
   const [globalMax, setGlobalMax] = useState(initState.globalMax);
+  const [appTitle, setAppTitle] = useState(initState.appTitle);
   const [currentNumber, setCurrentNumber] = useState('0000');
   const [isAnimating, setIsAnimating] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -64,9 +92,12 @@ function App() {
   const [editingGlobalMin, setEditingGlobalMin] = useState('1');
   const [editingGlobalMax, setEditingGlobalMax] = useState('9999');
   const [editingCategories, setEditingCategories] = useState([]);
+  const [editingTitle, setEditingTitle] = useState('');
 
   const [isDramatic, setIsDramatic] = useState(false);
   const [lockingDigits, setLockingDigits] = useState([false, false, false, false]);
+  const [showFlash, setShowFlash] = useState(false);
+  const [fireworks, setFireworks] = useState([]);
 
   const animationRef = useRef(null);
   const finalNumberRef = useRef('0000');
@@ -77,8 +108,8 @@ function App() {
   const isDramaticRef = useRef(false);
 
   useEffect(() => {
-    saveState(categories, activeCategoryId, globalMin, globalMax);
-  }, [categories, activeCategoryId, globalMin, globalMax]);
+    saveState(categories, activeCategoryId, globalMin, globalMax, appTitle);
+  }, [categories, activeCategoryId, globalMin, globalMax, appTitle]);
 
   const activeCategory = categories.find(c => c.id === activeCategoryId) || categories[0];
 
@@ -148,13 +179,19 @@ function App() {
 
       const dramatic = isDramaticRef.current;
       const stopDigit = (index) => {
-        if (index < 0) {
+        if (index > 3) {
           setIsAnimating(false);
           setIsDramatic(false);
           animatingDigitsRef.current = [false, false, false, false];
           setAnimatingDigits([false, false, false, false]);
           setLockingDigits([false, false, false, false]);
           addWinnerToCategory(finalNumber);
+          setShowFlash(true);
+          setFireworks(generateFireworks());
+          setTimeout(() => {
+            setShowFlash(false);
+            setFireworks([]);
+          }, 1500);
           isProcessingRef.current = false;
           return;
         }
@@ -166,10 +203,10 @@ function App() {
             setLockingDigits(prev => { const n = [...prev]; n[index] = false; return n; });
           }, 450);
         }
-        setTimeout(() => stopDigit(index - 1), stopDelayRef.current);
+        setTimeout(() => stopDigit(index + 1), stopDelayRef.current);
       };
 
-      stopDigit(3);
+      stopDigit(0);
     } else {
       if (isCategoryFull) return;
       isProcessingRef.current = true;
@@ -180,7 +217,7 @@ function App() {
         return;
       }
       const dramatic = activeCategory.pickCount === 1;
-      animationSpeedRef.current = 80;
+      animationSpeedRef.current = 60;
       stopDelayRef.current = dramatic ? 700 : 300;
       isDramaticRef.current = dramatic;
       setIsDramatic(dramatic);
@@ -229,6 +266,7 @@ function App() {
       ...c,
       pickCount: c.pickCount.toString(),
     })));
+    setEditingTitle(appTitle);
     setShowSettings(true);
   };
 
@@ -293,6 +331,7 @@ function App() {
     setGlobalMin(min);
     setGlobalMax(max);
     setCategories(newCategories);
+    setAppTitle(editingTitle.trim() || DEFAULT_TITLE);
     if (!newCategories.find(c => c.id === activeCategoryId)) {
       setActiveCategoryId(newCategories[0].id);
     }
@@ -317,7 +356,7 @@ function App() {
   return (
     <div className="App">
       <header className="app-header">
-        <h1 className="app-title">Bona Taon Punguan Sianipar Dohot Boruna Na Sian Lumban Balik Tahun 2026</h1>
+        <h1 className="app-title">{appTitle}</h1>
         <button className="settings-btn" onClick={openSettings}>
           ⚙️ Settings
         </button>
@@ -347,13 +386,39 @@ function App() {
       <div className="main-container">
         <div className="randomizer-section">
           <div className="active-category-header">
-            <div className="active-category-label">
-              {activeCategory?.name}
-              {activeCategory?.prizeName && (
-                <span className="active-prize-separator"> | {activeCategory.prizeName}</span>
-              )}
-            </div>
+          <div className="active-category-label">
+            <div className="active-category-name">{activeCategory?.name}</div>
+            {activeCategory?.prizeName && (
+              <div className="active-prize-line">{activeCategory.prizeName}</div>
+            )}
           </div>
+          </div>
+
+          {showFlash && <div className="dramatic-flash" />}
+          {fireworks.length > 0 && (
+            <div className="fireworks-overlay">
+              {fireworks.map(burst => (
+                <div
+                  key={burst.id}
+                  className="firework-burst"
+                  style={{ left: burst.x, top: burst.y }}
+                >
+                  {burst.particles.map((p, i) => (
+                    <div
+                      key={i}
+                      className="firework-particle"
+                      style={{
+                        '--angle': p.angle,
+                        '--dist': p.dist,
+                        '--color': p.color,
+                        '--delay': p.delay,
+                      }}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className={`slot-machine ${isDramatic ? 'dramatic' : ''}`}>
             {digits.map((digit, index) => (
@@ -445,6 +510,18 @@ function App() {
           <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
             <h2>Settings</h2>
             <div className="settings-form">
+
+              {/* Event Title */}
+              <div className="settings-section">
+                <label className="settings-section-label">Event Title</label>
+                <input
+                  type="text"
+                  className="title-input"
+                  placeholder={DEFAULT_TITLE}
+                  value={editingTitle}
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                />
+              </div>
 
               {/* Global Number Range */}
               <div className="settings-section">
