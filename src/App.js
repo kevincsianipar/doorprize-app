@@ -9,21 +9,21 @@ const FIREWORK_COLORS = ['#ffd700', '#ff8c00', '#ff4500', '#ffffff', '#ffec00', 
 
 function generateFireworks() {
   const bursts = [];
-  for (let b = 0; b < 4; b++) {
+  for (let b = 0; b < 8; b++) {
     const particles = [];
-    const count = 14;
+    const count = 20;
     for (let p = 0; p < count; p++) {
       particles.push({
-        angle: `${((360 / count) * p + Math.random() * 15).toFixed(1)}deg`,
-        dist: `${Math.round(60 + Math.random() * 60)}px`,
+        angle: `${((360 / count) * p + Math.random() * 18).toFixed(1)}deg`,
+        dist: `${Math.round(120 + Math.random() * 130)}px`,
         color: FIREWORK_COLORS[Math.floor(Math.random() * FIREWORK_COLORS.length)],
-        delay: `${(Math.random() * 0.3).toFixed(2)}s`,
+        delay: `${(b * 0.12 + Math.random() * 0.25).toFixed(2)}s`,
       });
     }
     bursts.push({
       id: generateId(),
-      x: `${(15 + Math.random() * 70).toFixed(1)}%`,
-      y: `${(20 + Math.random() * 60).toFixed(1)}%`,
+      x: `${(10 + Math.random() * 80).toFixed(1)}%`,
+      y: `${(10 + Math.random() * 75).toFixed(1)}%`,
       particles,
     });
   }
@@ -47,12 +47,15 @@ function loadState() {
 }
 
 const DEFAULT_TITLE = 'Bona Taon Punguan Sianipar Dohot Boruna Na Sian Lumban Balik Tahun 2026';
+const DEFAULT_DIGIT_COUNT = 4;
 
-function saveState(categories, activeCategoryId, globalMin, globalMax, appTitle) {
+const maxForDigits = (d) => Math.pow(10, d) - 1;
+
+function saveState(categories, activeCategoryId, globalMin, globalMax, appTitle, digitCount) {
   try {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ categories, activeCategoryId, globalMin, globalMax, appTitle })
+      JSON.stringify({ categories, activeCategoryId, globalMin, globalMax, appTitle, digitCount })
     );
   } catch (e) {}
 }
@@ -72,10 +75,11 @@ function App() {
       const activeId = cats.find(c => c.id === saved.activeCategoryId)
         ? saved.activeCategoryId
         : cats[0].id;
-      return { categories: cats, activeCategoryId: activeId, globalMin, globalMax, appTitle: saved.appTitle ?? DEFAULT_TITLE };
+      const digitCount = saved.digitCount ?? DEFAULT_DIGIT_COUNT;
+      return { categories: cats, activeCategoryId: activeId, globalMin, globalMax, appTitle: saved.appTitle ?? DEFAULT_TITLE, digitCount };
     }
     const cat = createDefaultCategory();
-    return { categories: [cat], activeCategoryId: cat.id, globalMin: 1, globalMax: 9999, appTitle: DEFAULT_TITLE };
+    return { categories: [cat], activeCategoryId: cat.id, globalMin: 1, globalMax: 9999, appTitle: DEFAULT_TITLE, digitCount: DEFAULT_DIGIT_COUNT };
   });
 
   const [categories, setCategories] = useState(initState.categories);
@@ -83,33 +87,39 @@ function App() {
   const [globalMin, setGlobalMin] = useState(initState.globalMin);
   const [globalMax, setGlobalMax] = useState(initState.globalMax);
   const [appTitle, setAppTitle] = useState(initState.appTitle);
-  const [currentNumber, setCurrentNumber] = useState('0000');
+  const [digitCount, setDigitCount] = useState(initState.digitCount);
+  const [currentNumber, setCurrentNumber] = useState(() => '0'.repeat(initState.digitCount));
   const [isAnimating, setIsAnimating] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [animatingDigits, setAnimatingDigits] = useState([false, false, false, false]);
+  const [animatingDigits, setAnimatingDigits] = useState(() => Array(initState.digitCount).fill(false));
 
   // Settings editing state
   const [editingGlobalMin, setEditingGlobalMin] = useState('1');
   const [editingGlobalMax, setEditingGlobalMax] = useState('9999');
   const [editingCategories, setEditingCategories] = useState([]);
   const [editingTitle, setEditingTitle] = useState('');
+  const [editingDigitCount, setEditingDigitCount] = useState(DEFAULT_DIGIT_COUNT);
 
   const [isDramatic, setIsDramatic] = useState(false);
-  const [lockingDigits, setLockingDigits] = useState([false, false, false, false]);
+  const [lockingDigits, setLockingDigits] = useState(() => Array(initState.digitCount).fill(false));
   const [showFlash, setShowFlash] = useState(false);
   const [fireworks, setFireworks] = useState([]);
 
   const animationRef = useRef(null);
-  const finalNumberRef = useRef('0000');
-  const animatingDigitsRef = useRef([false, false, false, false]);
+  const finalNumberRef = useRef(() => '0'.repeat(initState.digitCount));
+  const animatingDigitsRef = useRef(() => Array(initState.digitCount).fill(false));
   const isProcessingRef = useRef(false);
   const animationSpeedRef = useRef(80);
   const stopDelayRef = useRef(300);
   const isDramaticRef = useRef(false);
+  const showFireworksRef = useRef(false);
+  const digitCountRef = useRef(initState.digitCount);
+
+  useEffect(() => { digitCountRef.current = digitCount; }, [digitCount]);
 
   useEffect(() => {
-    saveState(categories, activeCategoryId, globalMin, globalMax, appTitle);
-  }, [categories, activeCategoryId, globalMin, globalMax, appTitle]);
+    saveState(categories, activeCategoryId, globalMin, globalMax, appTitle, digitCount);
+  }, [categories, activeCategoryId, globalMin, globalMax, appTitle, digitCount]);
 
   const activeCategory = categories.find(c => c.id === activeCategoryId) || categories[0];
 
@@ -141,8 +151,9 @@ function App() {
   useEffect(() => {
     if (!isAnimating || !animationRef.current) return;
     const animate = () => {
+      const dc = digitCountRef.current;
       const newDigits = [];
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < dc; i++) {
         if (animatingDigitsRef.current[i]) {
           newDigits.push(Math.floor(Math.random() * 10).toString());
         } else {
@@ -174,35 +185,35 @@ function App() {
         isProcessingRef.current = false;
         return;
       }
+      const dc = digitCountRef.current;
       const finalNumber = available[Math.floor(Math.random() * available.length)];
-      finalNumberRef.current = finalNumber.toString().padStart(4, '0');
+      finalNumberRef.current = finalNumber.toString().padStart(dc, '0');
 
-      const dramatic = isDramaticRef.current;
       const stopDigit = (index) => {
-        if (index > 3) {
+        if (index >= dc) {
           setIsAnimating(false);
           setIsDramatic(false);
-          animatingDigitsRef.current = [false, false, false, false];
-          setAnimatingDigits([false, false, false, false]);
-          setLockingDigits([false, false, false, false]);
+          animatingDigitsRef.current = Array(dc).fill(false);
+          setAnimatingDigits(Array(dc).fill(false));
+          setLockingDigits(Array(dc).fill(false));
           addWinnerToCategory(finalNumber);
-          setShowFlash(true);
-          setFireworks(generateFireworks());
-          setTimeout(() => {
-            setShowFlash(false);
-            setFireworks([]);
-          }, 1500);
+          if (showFireworksRef.current) {
+            setShowFlash(true);
+            setFireworks(generateFireworks());
+            setTimeout(() => {
+              setShowFlash(false);
+              setFireworks([]);
+            }, 3000);
+          }
           isProcessingRef.current = false;
           return;
         }
         animatingDigitsRef.current[index] = false;
         setAnimatingDigits([...animatingDigitsRef.current]);
-        if (dramatic) {
-          setLockingDigits(prev => { const n = [...prev]; n[index] = true; return n; });
-          setTimeout(() => {
-            setLockingDigits(prev => { const n = [...prev]; n[index] = false; return n; });
-          }, 450);
-        }
+        setLockingDigits(prev => { const n = [...prev]; n[index] = true; return n; });
+        setTimeout(() => {
+          setLockingDigits(prev => { const n = [...prev]; n[index] = false; return n; });
+        }, 450);
         setTimeout(() => stopDigit(index + 1), stopDelayRef.current);
       };
 
@@ -216,14 +227,16 @@ function App() {
         isProcessingRef.current = false;
         return;
       }
-      const dramatic = activeCategory.pickCount === 1;
+      const dc = digitCountRef.current;
+      const isSinglePick = activeCategory.pickCount === 1;
       animationSpeedRef.current = 60;
-      stopDelayRef.current = dramatic ? 700 : 300;
-      isDramaticRef.current = dramatic;
-      setIsDramatic(dramatic);
-      animatingDigitsRef.current = [true, true, true, true];
-      setAnimatingDigits([true, true, true, true]);
-      finalNumberRef.current = '0000';
+      stopDelayRef.current = isSinglePick ? 1200 : 700;
+      isDramaticRef.current = true;
+      showFireworksRef.current = isSinglePick;
+      setIsDramatic(true);
+      animatingDigitsRef.current = Array(dc).fill(true);
+      setAnimatingDigits(Array(dc).fill(true));
+      finalNumberRef.current = '0'.repeat(dc);
       animationRef.current = true;
       setIsAnimating(true);
       setTimeout(() => { isProcessingRef.current = false; }, 200);
@@ -251,10 +264,12 @@ function App() {
   };
 
   const stopAnimation = () => {
+    const dc = digitCountRef.current;
     setIsAnimating(false);
-    setCurrentNumber('0000');
-    animatingDigitsRef.current = [false, false, false, false];
-    setAnimatingDigits([false, false, false, false]);
+    setCurrentNumber('0'.repeat(dc));
+    animatingDigitsRef.current = Array(dc).fill(false);
+    setAnimatingDigits(Array(dc).fill(false));
+    setLockingDigits(Array(dc).fill(false));
     animationRef.current = null;
     isProcessingRef.current = false;
   };
@@ -267,6 +282,7 @@ function App() {
       pickCount: c.pickCount.toString(),
     })));
     setEditingTitle(appTitle);
+    setEditingDigitCount(digitCount);
     setShowSettings(true);
   };
 
@@ -290,14 +306,16 @@ function App() {
   };
 
   const handleSaveSettings = () => {
+    const newDigitCount = Math.min(6, Math.max(3, editingDigitCount));
+    const digitMax = maxForDigits(newDigitCount);
     const min = parseInt(editingGlobalMin);
     const max = parseInt(editingGlobalMax);
     if (isNaN(min) || isNaN(max)) {
       alert('Please enter a valid number range.');
       return;
     }
-    if (min < 1 || max > 9999) {
-      alert('Numbers must be between 1 and 9999.');
+    if (min < 1 || max > digitMax) {
+      alert(`With ${newDigitCount} digit slots, numbers must be between 1 and ${digitMax}.`);
       return;
     }
     if (min >= max) {
@@ -317,7 +335,7 @@ function App() {
       }
     }
 
-    const rangeChanged = min !== globalMin || max !== globalMax;
+    const rangeChanged = min !== globalMin || max !== globalMax || newDigitCount !== digitCount;
 
     const newCategories = editingCategories.map(ec => {
       const existing = categories.find(c => c.id === ec.id);
@@ -328,6 +346,8 @@ function App() {
       };
     });
 
+    digitCountRef.current = newDigitCount;
+    setDigitCount(newDigitCount);
     setGlobalMin(min);
     setGlobalMax(max);
     setCategories(newCategories);
@@ -523,6 +543,27 @@ function App() {
                 />
               </div>
 
+              {/* Digit Slots */}
+              <div className="settings-section">
+                <label className="settings-section-label">Digit Slots <span className="label-hint">(3–6)</span></label>
+                <div className="digit-slots-row">
+                  {[3, 4, 5, 6].map(d => (
+                    <button
+                      key={d}
+                      type="button"
+                      className={`digit-slot-option ${editingDigitCount === d ? 'active' : ''}`}
+                      onClick={() => {
+                        setEditingDigitCount(d);
+                        const cap = maxForDigits(d);
+                        if (parseInt(editingGlobalMax) > cap) setEditingGlobalMax(cap.toString());
+                      }}
+                    >
+                      {d} <span className="digit-slot-option-hint">({d === 3 ? '999' : d === 4 ? '9,999' : d === 5 ? '99,999' : '999,999'})</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Global Number Range */}
               <div className="settings-section">
                 <label className="settings-section-label">Number Range <span className="label-hint">(applies to all categories)</span></label>
@@ -533,7 +574,7 @@ function App() {
                       type="number"
                       value={editingGlobalMin}
                       onChange={(e) => setEditingGlobalMin(e.target.value)}
-                      min="1" max="9999"
+                      min="1" max={maxForDigits(editingDigitCount)}
                       className="range-number-input"
                     />
                   </div>
@@ -544,7 +585,7 @@ function App() {
                       type="number"
                       value={editingGlobalMax}
                       onChange={(e) => setEditingGlobalMax(e.target.value)}
-                      min="1" max="9999"
+                      min="1" max={maxForDigits(editingDigitCount)}
                       className="range-number-input"
                     />
                   </div>
