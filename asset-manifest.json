@@ -1,16 +1,16 @@
 {
   "files": {
-    "main.css": "/doorprize-app/static/css/main.24c4c02b.css",
-    "main.js": "/doorprize-app/static/js/main.da436f12.js",
-    "static/js/453.6c61a5d4.chunk.js": "/doorprize-app/static/js/453.6c61a5d4.chunk.js",
+    "main.css": "/doorprize-app/static/css/main.c899c856.css",
+    "main.js": "/doorprize-app/static/js/main.1cc195d0.js",
+    "static/js/453.7966058d.chunk.js": "/doorprize-app/static/js/453.7966058d.chunk.js",
     "static/media/bg-batak.png": "/doorprize-app/static/media/bg-batak.ba87280799be450b4370.png",
     "index.html": "/doorprize-app/index.html",
-    "main.24c4c02b.css.map": "/doorprize-app/static/css/main.24c4c02b.css.map",
-    "main.da436f12.js.map": "/doorprize-app/static/js/main.da436f12.js.map",
-    "453.6c61a5d4.chunk.js.map": "/doorprize-app/static/js/453.6c61a5d4.chunk.js.map"
+    "main.c899c856.css.map": "/doorprize-app/static/css/main.c899c856.css.map",
+    "main.1cc195d0.js.map": "/doorprize-app/static/js/main.1cc195d0.js.map",
+    "453.7966058d.chunk.js.map": "/doorprize-app/static/js/453.7966058d.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.24c4c02b.css",
-    "static/js/main.da436f12.js"
+    "static/css/main.c899c856.css",
+    "static/js/main.1cc195d0.js"
   ]
 }
